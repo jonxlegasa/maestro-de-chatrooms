@@ -1,116 +1,61 @@
 package main
 
 import (
-	"flag"
-	"github.com/anthdm/hollywood/actor"
-	"github.com/anthdm/hollywood/remote"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	"log/slog"
+	"fmt"
+	"log"
 	"net/http"
+
+	"github.com/gorilla/websocket"
 )
 
-type clientMap map[string]*actor.PID
-type userMap map[string]string
-type chatroomMap map[string]*server
-
-type server struct {
-	clients    clientMap // key: address value: *pid
-	users      userMap   // key: address value: username
-	logger     *slog.Logger
-	chatroomID string
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
-var (
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins for this example
-		},
-	}
-	chatrooms = make(chatroomMap)
-)
+var clients = make(map[*websocket.Conn]bool)
 
-func newServer(chatroomID string) actor.Receiver {
-	return &server{
-		clients:    make(clientMap),
-		users:      make(userMap),
-		logger:     slog.Default(),
-		chatroomID: chatroomID,
-	}
-}
-
-func (s *server) Receive(ctx *actor.Context) {
-	// Implementing the actor message handling logic
-}
-
-func handleWebSocket(w http.ResponseWriter, r *http.Request, chatroomID string) {
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
+
 	if err != nil {
-		slog.Error("Failed to upgrade connection", "error", err)
+		log.Println("Failed to upgrade connection:", err)
 		return
 	}
 	defer conn.Close()
 
+	clients[conn] = true
+
 	for {
-		messageType, p, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
+
+		fmt.Println(string(message))
+
 		if err != nil {
-			slog.Error("Error reading message", "error", err)
-			return
+			log.Println("Error reading message:", err)
+			delete(clients, conn)
+			break
 		}
-		if messageType == websocket.TextMessage {
-			slog.Info("Received message", "message", string(p), "chatroom", chatroomID)
+
+		for client := range clients {
+			fmt.Println(websocket.TextMessage)
+			if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Println("Error broadcasting message:", err)
+				client.Close()
+				delete(clients, client)
+			}
 		}
-	}
-}
-
-func createChatroom(w http.ResponseWriter, r *http.Request) {
-	// Extracting chatroom ID from path parameters
-	chatroomID := r.URL.Path[len("/chatroom/"):]
-	if _, err := uuid.Parse(chatroomID); err != nil {
-		http.Error(w, "Invalid UUID format for chatroom ID", http.StatusBadRequest)
-		return
-	}
-
-	// If chatroom does not exist, create a new one
-	if _, exists := chatrooms[chatroomID]; !exists {
-		chatrooms[chatroomID] = newServer(chatroomID).(*server)
-		slog.Info("Created new chatroom", "chatroomID", chatroomID)
 	}
 }
 
 func main() {
-	var (
-		listenAtWebsockets = flag.String("listen", "127.0.0.1:8001", "")
-		listenAtHTTP       = flag.String("listen", "127.0.0.1:8000", "")
-	)
-	flag.Parse()
+	// ip := "192.168.111.14"
+	ip := "127.0.0.1"
+	port := "8000"
 
-	rem := remote.New(*listenAtWebsockets, remote.NewConfig())
-	e, err := actor.NewEngine(actor.NewEngineConfig().WithRemote(rem))
-	if err != nil {
-		panic(err)
-	}
+	fmt.Println("Server starting at " + ip + ":" + port)
 
-	// Setup routing using the new Go 1.22 features
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /chatroom/{id}", createChatroom)
-	mux.HandleFunc("GET /ws/chatroom/{id}", func(w http.ResponseWriter, r *http.Request) {
-		chatroomID := r.URL.Path[len("/ws/chatroom/"):]
-		if _, exists := chatrooms[chatroomID]; exists {
-			handleWebSocket(w, r, chatroomID)
-		} else {
-			http.Error(w, "Chatroom not found", http.StatusNotFound)
-		}
-	})
-
-	go func() {
-		slog.Info("Starting HTTP server", "address", *listenAtHTTP)
-		if err := http.ListenAndServe(*listenAtHTTP, mux); err != nil {
-			slog.Error("HTTP server error", "error", err)
-		}
-	}()
-
-	select {}
+	http.HandleFunc("/ws", handleWebSocket)
+	log.Fatal(http.ListenAndServe(ip+":"+port, nil))
 }

@@ -4,11 +4,9 @@ option go_package = "github.com/anthdm/hollywood/examples/chat/types";
 
 message Disconnect {}
 
-message Connect {
-	string username = 1;
-}
+message Connect { string username = 1; }
 
 message Message {
-	string username = 1;
-	string msg = 2;
+  string username = 1;
+  string msg = 2;
 }
