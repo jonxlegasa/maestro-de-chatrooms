@@ -41,9 +41,9 @@ func (c *client) Receive(ctx *actor.Context) {
 		// Process the message with AI
 		receivedMessagesStr := utils.MessagesToString(c.receivedMessages)
 
-		aiResponse, err := utils.ChatWithOpenAIAgent(c.initialInput, receivedMessagesStr)
+		// aiResponse, err := utils.ChatWithOpenAIAgent(c.initialInput, receivedMessagesStr)
 
-		// aiResponse, err := utils.ChatWithGroqAgent(c.initialInput, receivedMessagesStr)
+		aiResponse, err := utils.ChatWithGroqAgent(c.initialInput, receivedMessagesStr)
 		if err != nil {
 			c.logger.Error("AI processing failed", "err", err)
 			return
@@ -106,3 +106,4 @@ func main() {
 	// Keep the main function running
 	select {} // Block forever
 }
+
