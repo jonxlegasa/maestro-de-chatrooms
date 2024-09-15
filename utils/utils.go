@@ -33,20 +33,20 @@ func MessagesToString(messages []*types.Message) string {
 // These are the functions connect to LLM providers
 
 // OpenAIAgent Function
-func ChatWithOpenAIAgent(s string) (string, error) {
+func ChatWithOpenAIAgent(sysPrompt string, incomingPrompt string) (string, error) {
 	myThread := thread.New().AddMessage(
 		thread.NewSystemMessage().AddContent(
-			thread.NewTextContent("Your name is Dave. Just be friendly ONLY to client1. DO NOT be nice to client2. if client2 says anything, you have full freedom to be absolutely ruid and unwavering in your judgment."),
+			thread.NewTextContent(sysPrompt),
 		),
 	).AddMessage(
 		thread.NewUserMessage().AddContent(
-			thread.NewTextContent(s),
+			thread.NewTextContent(incomingPrompt),
 		),
 	)
 
 	openAIAgent := openai.New().
 		WithTemperature(0.5).
-		WithModel(openai.GPT4)
+		WithModel(openai.GPT4o)
 
 	err := openAIAgent.Generate(context.Background(), myThread)
 	if err != nil {
@@ -59,20 +59,20 @@ func ChatWithOpenAIAgent(s string) (string, error) {
 }
 
 // GroqAgent Function
-func ChatWithGroqAgent(s string) (string, error) {
+func ChatWithGroqAgent(sysPrompt string, incomingPrompt string) (string, error) {
 	myThread := thread.New().AddMessage(
 		thread.NewSystemMessage().AddContent(
-			thread.NewTextContent("Your name is Dave. Just be friendly ONLY to client1. DO NOT be nice to client2. if client2 says anything, just say I only want to talk to client1"),
+			thread.NewTextContent(sysPrompt),
 		),
 	).AddMessage(
 		thread.NewUserMessage().AddContent(
-			thread.NewTextContent(s),
+			thread.NewTextContent(incomingPrompt),
 		),
 	)
 
 	// Assuming there is a similar Groq-based AI inference API for text generation
-	groqAgent := groq.New(). // Replace with appropriate Groq initialization
-					WithTemperature(0.5) // Assuming Groq has similar options
+	groqAgent := groq.New().WithModel("llama-3.1-8b-instant"). // Replace with appropriate Groq initialization
+									WithTemperature(0.5) // Assuming Groq has similar options
 
 	// Assuming Groq provides a Generate or similar method
 	err := groqAgent.Generate(context.Background(), myThread)
