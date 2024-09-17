@@ -13,63 +13,42 @@ import (
 	"github.com/jonxlegasa/maestro-de-chatrooms/utils"
 )
 
-type client struct {
-	username         string
-	serverPID        *actor.PID
-	logger           *slog.Logger
-	receivedMessages []*types.Message
-	initialInput     string // Add this field to store the initial input
+type prompt struct {
+	systemprompt     string
+	chatroommessages string // For now I am just going to stream all the messages
+	// to the LLM when the server broadcasts it back
 }
 
-func newClient(username string, serverPID *actor.PID, initialInput string) (actor.Producer, *client) {
-	c := &client{
-		username:     username,
-		serverPID:    serverPID,
-		logger:       slog.Default(),
-		initialInput: initialInput,
-	}
+type client struct {
+	username  string
+	serverPID *actor.PID
+	logger    *slog.Logger
+}
+
+var receivedmessages []*types.Message
+
+func newClient(username string, serverPID *actor.PID) actor.Producer {
 	return func() actor.Receiver {
-		return c
-	}, c
+		return &client{
+			username:  username,
+			serverPID: serverPID,
+			logger:    slog.Default(),
+		}
+	}
 }
 
 func (c *client) Receive(ctx *actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *types.Message:
-		c.receivedMessages = append(c.receivedMessages, msg)
+		fmt.Printf("%s: %s\n", msg.Username, msg.Msg)
 
-		// Process the message with AI
-		receivedMessagesStr := utils.MessagesToString(c.receivedMessages)
-
-		// aiResponse, err := utils.ChatWithOpenAIAgent(c.initialInput, receivedMessagesStr)
-
-		aiResponse, err := utils.ChatWithGroqAgent(c.initialInput, receivedMessagesStr)
-		if err != nil {
-			c.logger.Error("AI processing failed", "err", err)
-			return
-		}
-
-		// Create and send the response message
-		responseMsg := &types.Message{
-			Msg:      aiResponse,
-			Username: c.username,
-		}
-		ctx.Send(c.serverPID, responseMsg)
+		receivedmessages = append(receivedmessages, msg)
 
 	case actor.Started:
 		// Notify server that client has connected
 		ctx.Send(c.serverPID, &types.Connect{
 			Username: c.username,
 		})
-
-		// Send initial message if there's initial input
-		if c.initialInput != "" {
-			initialMsg := &types.Message{
-				Msg:      c.initialInput,
-				Username: c.username,
-			}
-			ctx.Send(c.serverPID, initialMsg)
-		}
 
 	case actor.Stopped:
 		c.logger.Info("client stopped")
@@ -83,27 +62,53 @@ func main() {
 		username  = flag.String("username", os.Getenv("USER"), "")
 		input     = flag.String("input", "", "input text for the client")
 	)
-	flag.Parse()
 
+	flag.Parse()
 	if *listenAt == "" {
 		*listenAt = fmt.Sprintf("127.0.0.1:%d", rand.Int31n(50000)+10000)
 	}
 
 	rem := remote.New(*listenAt, remote.NewConfig())
 	e, err := actor.NewEngine(actor.NewEngineConfig().WithRemote(rem))
+
 	if err != nil {
 		slog.Error("failed to create engine", "err", err)
 		os.Exit(1)
 	}
 
-	// The process ID of the server
-	serverPID := actor.NewPID(*connectTo, "server/primary")
+	var (
+		serverPID = actor.NewPID(*connectTo, "server/primary")
+		// Spawn our client receiver
+		clientPID = e.Spawn(newClient(*username, serverPID), "client", actor.WithID(*username))
+	)
 
-	// Spawn the client actor with the initial input
-	clientActor, _ := newClient(*username, serverPID, *input)
-	e.Spawn(clientActor, "client", actor.WithID(*username))
+	receivedmessagesstr := utils.MessagesToString(receivedmessages)
 
-	// Keep the main function running
-	select {} // Block forever
+	p := &prompt{
+		systemprompt:     *input,
+		chatroommessages: receivedmessagesstr,
+	}
+
+	fmt.Println("Number of received messages:", len(receivedmessages))
+
+	//fmt.Println(receivedmessagesstr)
+	aiResponse, err := utils.ChatWithGroqAgent(p.systemprompt, receivedmessagesstr)
+
+	if err != nil {
+		slog.Error("AI processing failed", "err", err)
+		return
+	}
+
+	fmt.Println("AI Response generated:", aiResponse)
+
+	// Create and send the response message
+
+	aimessage := &types.Message{
+		Msg:      aiResponse,
+		Username: *username,
+	}
+
+	e.SendWithSender(serverPID, aimessage, clientPID)
+
+	select {}
 }
-

@@ -14,22 +14,6 @@ import (
 	"github.com/henomis/lingoose/thread"
 )
 
-// Random Helper functions
-// converts the incoming messages from other actors and formats them into a string.
-// hopefull easier to send this to an llm
-func MessagesToString(messages []*types.Message) string {
-	var result strings.Builder
-
-	for _, msg := range messages {
-		result.WriteString(fmt.Sprintf("Username: %s\n", msg.Username))
-		result.WriteString(fmt.Sprintf("Message: %s\n", msg.Msg))
-		result.WriteString("---\n")
-	}
-
-	return result.String()
-
-}
-
 // These are the functions connect to LLM providers
 
 // OpenAIAgent Function
@@ -59,14 +43,14 @@ func ChatWithOpenAIAgent(sysPrompt string, incomingPrompt string) (string, error
 }
 
 // GroqAgent Function
-func ChatWithGroqAgent(sysPrompt string, incomingPrompt string) (string, error) {
+func ChatWithGroqAgent(sysprompt string, incomingprompt string) (string, error) {
 	myThread := thread.New().AddMessage(
 		thread.NewSystemMessage().AddContent(
-			thread.NewTextContent(sysPrompt),
+			thread.NewTextContent(sysprompt),
 		),
 	).AddMessage(
 		thread.NewUserMessage().AddContent(
-			thread.NewTextContent(incomingPrompt),
+			thread.NewTextContent(incomingprompt),
 		),
 	)
 
@@ -82,4 +66,19 @@ func ChatWithGroqAgent(sysPrompt string, incomingPrompt string) (string, error) 
 
 	fmt.Println(myThread)
 	return myThread.String(), nil
+}
+
+// converts the incoming messages from other actors and formats them into a string.
+// hopefull easier to send this to an llm
+func MessagesToString(messages []*types.Message) string {
+	var result strings.Builder
+
+	for _, msg := range messages {
+		result.WriteString(fmt.Sprintf("Username: %s\n", msg.Username))
+		result.WriteString(fmt.Sprintf("Message: %s\n", msg.Msg))
+		result.WriteString("---\n")
+	}
+
+	return result.String()
+
 }

@@ -36,7 +36,6 @@ while IFS= read -r -d '' file; do
 done < <(find "$FILES_DIR" -maxdepth 1 -type f -name "*.txt" -print0)
 
 file_count=${#files[@]}
-
 if [ $file_count -eq 0 ]; then
     echo "Error: No text files found in $FILES_DIR"
     exit 1
@@ -58,7 +57,8 @@ for ((i=0; i<file_count; i++)); do
     escaped_content=$(printf '%q' "$file_content")
     
     # Run the Go program with the file content as an argument
-    go run agents/chat.go -username "$username" -input "$escaped_content" &
+    # Use 'exec' to replace the shell process, preventing double connections
+    exec go run agents/chat.go -username "$username" -input "$escaped_content" &
 done
 
 # Wait for all background processes to finish
