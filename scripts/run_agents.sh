@@ -3,20 +3,25 @@
 # Default values
 USERNAME_PREFIX="OPENAIGPT"
 FILES_DIR=""
+LISTEN_ADDR=""
+CONNECT_ADDR="127.0.0.1:4000"
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 [-p PREFIX] [-d FILES_DIRECTORY]"
+    echo "Usage: $0 [-p PREFIX] [-d FILES_DIRECTORY] [-l LISTEN_ADDRESS] [-c CONNECT_ADDRESS]"
     echo "  -p PREFIX           Set the username prefix (default: OPENAIGPT)"
     echo "  -d FILES_DIRECTORY  Set the directory containing input text files (required)"
+    echo "  -c CONNECT_ADDRESS  Specify the address of the server to connect to (default: 127.0.0.1:4000)"
     exit 1
 }
 
 # Parse command line options
-while getopts ":p:d:" opt; do
+while getopts ":p:d:l:c:" opt; do
     case $opt in
         p) USERNAME_PREFIX="$OPTARG" ;;
         d) FILES_DIR="$OPTARG" ;;
+        l) LISTEN_ADDR="$OPTARG" ;;
+        c) CONNECT_ADDR="$OPTARG" ;;
         \?) echo "Invalid option -$OPTARG" >&2; usage ;;
     esac
 done
@@ -56,9 +61,8 @@ for ((i=0; i<file_count; i++)); do
     # Escape special characters in the file content
     escaped_content=$(printf '%q' "$file_content")
     
-    # Run the Go program with the file content as an argument
-    # Use 'exec' to replace the shell process, preventing double connections
-    exec go run agents/chat.go -username "$username" -input "$escaped_content" &
+    # Run the Go program with the specified flags
+    exec go run agents/chat.go -username "$username" -input "$escaped_content" -connect "$CONNECT_ADDR" &
 done
 
 # Wait for all background processes to finish

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"os"
+	"sync"
 
 	"github.com/anthdm/hollywood/actor"
 	"github.com/anthdm/hollywood/examples/chat/types"
@@ -25,7 +26,11 @@ type client struct {
 	logger    *slog.Logger
 }
 
-var receivedmessages []*types.Message
+var (
+	mu               sync.Mutex
+	messages         = make(chan struct{})
+	receivedmessages []*types.Message
+)
 
 func newClient(username string, serverPID *actor.PID) actor.Producer {
 	return func() actor.Receiver {
@@ -42,7 +47,14 @@ func (c *client) Receive(ctx *actor.Context) {
 	case *types.Message:
 		fmt.Printf("%s: %s\n", msg.Username, msg.Msg)
 
+		mu.Lock()
 		receivedmessages = append(receivedmessages, msg)
+		mu.Unlock()
+
+		select {
+		case messages <- struct{}{}:
+		default:
+		}
 
 	case actor.Started:
 		// Notify server that client has connected
@@ -60,7 +72,7 @@ func main() {
 		listenAt  = flag.String("listen", "", "specify address to listen to, will pick a random port if not specified")
 		connectTo = flag.String("connect", "127.0.0.1:4000", "the address of the server to connect to")
 		username  = flag.String("username", os.Getenv("USER"), "")
-		input     = flag.String("input", "", "input text for the client")
+		sysprompt = flag.String("input", "", "system prompt files for agents")
 	)
 
 	flag.Parse()
@@ -82,33 +94,35 @@ func main() {
 		clientPID = e.Spawn(newClient(*username, serverPID), "client", actor.WithID(*username))
 	)
 
+	<-messages
 	receivedmessagesstr := utils.MessagesToString(receivedmessages)
 
 	p := &prompt{
-		systemprompt:     *input,
+		systemprompt:     *sysprompt,
 		chatroommessages: receivedmessagesstr,
 	}
 
 	fmt.Println("Number of received messages:", len(receivedmessages))
 
 	//fmt.Println(receivedmessagesstr)
-	aiResponse, err := utils.ChatWithGroqAgent(p.systemprompt, receivedmessagesstr)
+	llmresponse, err := utils.ChatWithGroqAgent(p.systemprompt, receivedmessagesstr)
+
+	fmt.Println("LLM response:", llmresponse)
 
 	if err != nil {
 		slog.Error("AI processing failed", "err", err)
 		return
 	}
 
-	fmt.Println("AI Response generated:", aiResponse)
-
 	// Create and send the response message
 
 	aimessage := &types.Message{
-		Msg:      aiResponse,
+		Msg:      llmresponse,
 		Username: *username,
 	}
 
 	e.SendWithSender(serverPID, aimessage, clientPID)
 
 	select {}
+
 }

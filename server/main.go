@@ -78,7 +78,7 @@ func (s *server) handleMessage(ctx *actor.Context) {
 
 func main() {
 	var (
-		listenAt = flag.String("listen", "127.0.0.1:4000", "")
+		listenAt = flag.String("listen", "127.0.0.1:5000", "")
 	)
 	flag.Parse()
 	rem := remote.New(*listenAt, remote.NewConfig())
@@ -88,5 +88,6 @@ func main() {
 	}
 
 	e.Spawn(newServer, "server", actor.WithID("primary"))
+
 	select {}
 }

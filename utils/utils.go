@@ -10,7 +10,6 @@ import (
 
 	"github.com/henomis/lingoose/llm/groq"
 	"github.com/henomis/lingoose/llm/openai"
-
 	"github.com/henomis/lingoose/thread"
 )
 
@@ -37,9 +36,7 @@ func ChatWithOpenAIAgent(sysPrompt string, incomingPrompt string) (string, error
 		panic(err)
 	}
 
-	fmt.Println(myThread)
 	return myThread.String(), nil
-
 }
 
 // GroqAgent Function
@@ -64,7 +61,6 @@ func ChatWithGroqAgent(sysprompt string, incomingprompt string) (string, error) 
 		return "", err
 	}
 
-	fmt.Println(myThread)
 	return myThread.String(), nil
 }
 
@@ -80,5 +76,4 @@ func MessagesToString(messages []*types.Message) string {
 	}
 
 	return result.String()
-
 }
