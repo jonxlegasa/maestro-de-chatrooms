@@ -1,0 +1,17 @@
+# Description of each Nation that is playing the war game with you and their resources.
+# Red Nation
+- Background info: Red Nation has a long history of defending its land from invasions. Recently, tensions have escalated with Blue Nation over border disputes, and the people of Red Nation demand immediate action.
+- Where in the process are they: Red Nation is actively patrolling the disputed regions and preparing for possible conflict. Leaders are in negotiation talks with neighboring nations, but diplomacy is starting to fail.
+- Motivation and Purpose: Red Nation must act swiftly to secure its borders and prevent any further encroachment from Blue Nation before a larger conflict erupts.
+
+# Reources:
+- GDP: {GDP}
+- Military Strength: {military_strength}
+
+## Chat History:
+
+
+
+
+
+

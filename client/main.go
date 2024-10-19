@@ -11,6 +11,7 @@ import (
 	"github.com/anthdm/hollywood/actor"
 	"github.com/anthdm/hollywood/examples/chat/types"
 	"github.com/anthdm/hollywood/remote"
+	"github.com/jonxlegasa/maestro-de-chatrooms/utils"
 )
 
 type client struct {
@@ -48,6 +49,13 @@ func main() {
 		connectTo = flag.String("connect", "127.0.0.1:5000", "the address of the server to connect to")
 		username  = flag.String("username", os.Getenv("USER"), "")
 	)
+
+	// Testing out if prompt appending worked
+
+	utils.AppendMessagesToPrompt("this is a test message", "##Chat History: ", "../prompts/user_prompt.txt")
+
+	fmt.Println("Testing if prompt appending worked")
+
 	flag.Parse()
 	if *listenAt == "" {
 		*listenAt = fmt.Sprintf("127.0.0.1:%d", rand.Int31n(50000)+10000)

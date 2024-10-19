@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"os"
+
+	"io/ioutil"
+	"log"
 	"strings"
 
 	"github.com/anthdm/hollywood/examples/chat/types"
@@ -16,22 +20,46 @@ import (
 // These are the functions connect to LLM providers
 
 // OpenAIAgent Function
-func ChatWithOpenAIAgent(sysPrompt string, incomingPrompt string) (string, error) {
+func ChatWithOpenAIAgent(sysprompt string, incomingprompt string) (string, error) {
 	myThread := thread.New().AddMessage(
 		thread.NewSystemMessage().AddContent(
-			thread.NewTextContent(sysPrompt),
+			thread.NewTextContent(sysprompt),
 		),
 	).AddMessage(
 		thread.NewUserMessage().AddContent(
-			thread.NewTextContent(incomingPrompt),
+			thread.NewTextContent(incomingprompt),
 		),
 	)
 
-	openAIAgent := openai.New().
+	openaiagent := openai.New().
 		WithTemperature(0.5).
 		WithModel(openai.GPT4o)
 
-	err := openAIAgent.Generate(context.Background(), myThread)
+	err := openaiagent.Generate(context.Background(), myThread)
+	if err != nil {
+		panic(err)
+	}
+
+	return myThread.String(), nil
+}
+
+// Gemini Function
+func ChatWithAnthropicAgent(sysprompt string, incomingprompt string) (string, error) {
+	myThread := thread.New().AddMessage(
+		thread.NewSystemMessage().AddContent(
+			thread.NewTextContent(sysprompt),
+		),
+	).AddMessage(
+		thread.NewUserMessage().AddContent(
+			thread.NewTextContent(incomingprompt),
+		),
+	)
+
+	// Assuming there is a similar Groq-based AI inference API for text generation
+	anthropicagent := groq.New().WithModel("claude-3-5-sonnet-20240620"). // Replace with appropriate Groq initialization
+										WithTemperature(0.5) // Assuming Groq has similar options
+
+	err := anthropicagent.Generate(context.Background(), myThread)
 	if err != nil {
 		panic(err)
 	}
@@ -52,13 +80,37 @@ func ChatWithGroqAgent(sysprompt string, incomingprompt string) (string, error) 
 	)
 
 	// Assuming there is a similar Groq-based AI inference API for text generation
-	groqAgent := groq.New().WithModel("llama-3.1-8b-instant"). // Replace with appropriate Groq initialization
+	groqagent := groq.New().WithModel("llama-3.1-8b-instant"). // Replace with appropriate Groq initialization
 									WithTemperature(0.5) // Assuming Groq has similar options
 
 	// Assuming Groq provides a Generate or similar method
-	err := groqAgent.Generate(context.Background(), myThread)
+	err := groqagent.Generate(context.Background(), myThread)
 	if err != nil {
 		return "", err
+	}
+
+	return myThread.String(), nil
+}
+
+// OpenAIAgent Function
+func ChatWithGeminiAgent(sysprompt string, incomingprompt string) (string, error) {
+	myThread := thread.New().AddMessage(
+		thread.NewSystemMessage().AddContent(
+			thread.NewTextContent(sysprompt),
+		),
+	).AddMessage(
+		thread.NewUserMessage().AddContent(
+			thread.NewTextContent(incomingprompt),
+		),
+	)
+
+	// Assuming there is a similar Groq-based AI inference API for text generation
+	geminiagent := groq.New().WithModel("llama-3.1-8b-instant"). // Replace with appropriate Groq initialization
+									WithTemperature(0.5) // Assuming Groq has similar options
+
+	err := geminiagent.Generate(context.Background(), myThread)
+	if err != nil {
+		panic(err)
 	}
 
 	return myThread.String(), nil
@@ -76,4 +128,39 @@ func MessagesToString(messages []*types.Message) string {
 	}
 
 	return result.String()
+
+}
+
+func AppendMessagesToPrompt(message string, section string, filepath string) {
+	// Read the file content
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Convert file content to a string
+	text := string(content)
+
+	// Find the position of the section mark
+	if strings.Contains(text, section) {
+		// Split the file content at the section mark
+		parts := strings.Split(text, section)
+
+		// Append the new message to the chat history section
+		updatedsection := parts[1] + "\n" + message
+
+		// Rebuild the full file content
+		updatedtext := parts[0] + section + updatedsection
+
+		// Write the updated content back to the file
+		err = os.WriteFile(filepath, []byte(updatedtext), 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("Message appended successfully!")
+	} else {
+		fmt.Println("Section not found!")
+	}
+
 }

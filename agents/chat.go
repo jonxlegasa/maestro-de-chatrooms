@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math/rand"
 	"os"
-	"sync"
 
 	"github.com/anthdm/hollywood/actor"
 	"github.com/anthdm/hollywood/examples/chat/types"
@@ -15,8 +14,8 @@ import (
 )
 
 type prompt struct {
-	systemprompt     string
-	chatroommessages string // For now I am just going to stream all the messages
+	systemprompt    string
+	incomingmessage string // For now I am just going to stream all the messages
 	// to the LLM when the server broadcasts it back
 }
 
@@ -27,9 +26,9 @@ type client struct {
 }
 
 var (
-	mu               sync.Mutex
-	messages         = make(chan struct{})
-	receivedmessages []*types.Message
+	incomingmessageprompt string
+	messagehistory        []*types.Message
+	messages              = make(chan []*types.Message)
 )
 
 func newClient(username string, serverPID *actor.PID) actor.Producer {
@@ -46,15 +45,6 @@ func (c *client) Receive(ctx *actor.Context) {
 	switch msg := ctx.Message().(type) {
 	case *types.Message:
 		fmt.Printf("%s: %s\n", msg.Username, msg.Msg)
-
-		mu.Lock()
-		receivedmessages = append(receivedmessages, msg)
-		mu.Unlock()
-
-		select {
-		case messages <- struct{}{}:
-		default:
-		}
 
 	case actor.Started:
 		// Notify server that client has connected
@@ -94,18 +84,15 @@ func main() {
 		clientPID = e.Spawn(newClient(*username, serverPID), "client", actor.WithID(*username))
 	)
 
-	<-messages
-	receivedmessagesstr := utils.MessagesToString(receivedmessages)
-
 	p := &prompt{
-		systemprompt:     *sysprompt,
-		chatroommessages: receivedmessagesstr,
+		systemprompt:    *sysprompt,
+		incomingmessage: *&incomingmessageprompt,
 	}
 
-	fmt.Println("Number of received messages:", len(receivedmessages))
+	fmt.Println("Number of received messages:", len(messages))
 
 	//fmt.Println(receivedmessagesstr)
-	llmresponse, err := utils.ChatWithGroqAgent(p.systemprompt, receivedmessagesstr)
+	llmresponse, err := utils.ChatWithGroqAgent(p.systemprompt, p.incomingmessage)
 
 	fmt.Println("LLM response:", llmresponse)
 
@@ -124,5 +111,4 @@ func main() {
 	e.SendWithSender(serverPID, aimessage, clientPID)
 
 	select {}
-
 }
