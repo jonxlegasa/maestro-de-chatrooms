@@ -1,0 +1,44 @@
+roles: 
+  admin:
+    name: "Admin"
+    description: "strongest agent"
+  viceadmin:
+    name: "Vice Admin"
+    description: "second strongest agent"
+
+agent_groups:
+  red_nation:
+    name: "Red Nation"
+    description: "Red nation is super duper red"
+    prompt_library: "./prompts/rednation/"
+    settings:
+      max_agents: 10
+      default_role: "admin"
+    agents:
+      agentone:
+        name: "I AM THE LEADER"
+        role: "admin"
+
+  blue_nation:
+    name: "Blue Nation"
+    description: "Blue nation is calm and peaceful"
+    prompt_library: "./prompts/bluenation/"
+    settings:
+      max_agents: 10
+      default_role: "admin"
+    agents:
+      agentone:
+        name: "I AM THE LEADER"
+        role: "admin"
+
+  yellow_nation:
+    name: "Yellow Nation"
+    description: "Yellow nation is calm and peaceful"
+    prompt_library: "./prompts/yellownation/"
+    settings:
+      max_agents: 10
+      default_role: "admin"
+    agents:
+      agentone:
+        name: "I AM THE LEADER"
+        role: "admin"

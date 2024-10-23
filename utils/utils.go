@@ -6,7 +6,6 @@ import (
 
 	"os"
 
-	"io/ioutil"
 	"log"
 	"strings"
 
@@ -132,27 +131,18 @@ func MessagesToString(messages []*types.Message) string {
 }
 
 func AppendMessagesToPrompt(message string, section string, filepath string) {
-	// Read the file content
 	content, err := os.ReadFile(filepath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Convert file content to a string
 	text := string(content)
 
-	// Find the position of the section mark
 	if strings.Contains(text, section) {
-		// Split the file content at the section mark
 		parts := strings.Split(text, section)
 
-		// Append the new message to the chat history section
 		updatedsection := parts[1] + "\n" + message
-
-		// Rebuild the full file content
 		updatedtext := parts[0] + section + updatedsection
-
-		// Write the updated content back to the file
 		err = os.WriteFile(filepath, []byte(updatedtext), 0644)
 		if err != nil {
 			log.Fatal(err)

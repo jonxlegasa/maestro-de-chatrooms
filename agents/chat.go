@@ -7,11 +7,37 @@ import (
 	"math/rand"
 	"os"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/anthdm/hollywood/actor"
 	"github.com/anthdm/hollywood/examples/chat/types"
 	"github.com/anthdm/hollywood/remote"
 	"github.com/jonxlegasa/maestro-de-chatrooms/utils"
+	"log"
 )
+
+type Settings struct {
+	max_agents   int    `yaml:"agent_group"`
+	default_role string `yaml:"default_role"`
+}
+
+type Agent struct {
+	name       string `yaml:"name"`
+	role       string `yaml:"role"`
+	sysprompt  string
+	userprompt string
+}
+
+type AgentGroup struct {
+	name          string `yaml:"name"`
+	uuid          string
+	promptlibrary string   `yaml:"prompt_library"`
+	Settings      Settings `yaml:"settings"`
+}
+
+type Config struct {
+	AgentGroup AgentGroup `yaml:"agent_group"`
+}
 
 type prompt struct {
 	systemprompt    string
@@ -46,6 +72,8 @@ func (c *client) Receive(ctx *actor.Context) {
 	case *types.Message:
 		fmt.Printf("%s: %s\n", msg.Username, msg.Msg)
 
+		utils.AppendMessagesToPrompt(msg.Msg, "## Chat History:", "../prompts/user_prompt.txt")
+
 	case actor.Started:
 		// Notify server that client has connected
 		ctx.Send(c.serverPID, &types.Connect{
@@ -57,12 +85,31 @@ func (c *client) Receive(ctx *actor.Context) {
 	}
 }
 
+func loadConfig(filepath string) (*Config, error) {
+
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+
+}
+
 func main() {
 	var (
-		listenAt  = flag.String("listen", "", "specify address to listen to, will pick a random port if not specified")
-		connectTo = flag.String("connect", "127.0.0.1:4000", "the address of the server to connect to")
-		username  = flag.String("username", os.Getenv("USER"), "")
-		sysprompt = flag.String("input", "", "system prompt files for agents")
+		listenAt   = flag.String("listen", "", "specify address to listen to, will pick a random port if not specified")
+		connectTo  = flag.String("connect", "127.0.0.1:4000", "the address of the server to connect to")
+		username   = flag.String("username", os.Getenv("USER"), "")
+		sysprompt  = flag.String("sysprompt", "", "system prompt files for agents")
+		userprompt = flag.String("userprompt", "", "userprompt prompt files for agents")
 	)
 
 	flag.Parse()
@@ -84,9 +131,15 @@ func main() {
 		clientPID = e.Spawn(newClient(*username, serverPID), "client", actor.WithID(*username))
 	)
 
+	content, err := os.ReadFile(*userprompt)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	p := &prompt{
 		systemprompt:    *sysprompt,
-		incomingmessage: *&incomingmessageprompt,
+		incomingmessage: *userprompt,
 	}
 
 	fmt.Println("Number of received messages:", len(messages))

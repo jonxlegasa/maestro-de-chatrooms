@@ -8,10 +8,7 @@
 - GDP: {GDP}
 - Military Strength: {military_strength}
 
+
+# Goal of the simulation: Fight untill all your enemies are crushed and their is one nation standing. 
+
 ## Chat History:
-
-
-
-
-
-
